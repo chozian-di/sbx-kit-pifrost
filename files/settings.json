@@ -1,0 +1,46 @@
+{
+  "lastChangelogVersion": "1.5.0",
+  "hideThinkingBlock": true,
+  "enableSkillCommands": true,
+  "showHardwareCursor": false,
+  "terminal": {
+    "showTerminalProgress": true,
+    "clearOnShrink": false
+  },
+  "steeringMode": "one-at-a-time",
+  "followUpMode": "one-at-a-time",
+  "transport": "auto",
+  "sessionShareDestination": "auto",
+  "cacheWarming": "streaming",
+  "markdown": {
+    "mermaid": "streaming"
+  },
+  "showCacheMissNotices": true,
+  "collapseChangelog": true,
+  "quietStartup": false,
+  "enableInstallTelemetry": false,
+  "defaultProjectTrust": "ask",
+  "doubleEscapeAction": "tree",
+  "treeFilterMode": "default",
+  "tuiMode": "fullscreen",
+  "fullscreenExitOutput": "transcript",
+  "fullscreenScrollbar": "auto",
+  "fullscreenCopyOnSelect": true,
+  "fullscreenWheelScrollLines": "auto",
+  "theme": "system",
+  "compaction": {
+    "enabled": true
+  },
+  "images": {
+    "autoResize": true,
+    "blockImages": false
+  },
+  "editorPaddingX": 0,
+  "outputPad": 1,
+  "autocompleteMaxVisible": 5,
+  "httpIdleTimeoutMs": 300000,
+  "warnings": {
+    "anthropicExtraUsage": true
+  },
+  "defaultThinkingLevel": "medium"
+}
