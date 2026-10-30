@@ -1,0 +1,6 @@
+# Python and local validation artifacts.
+__pycache__/
+*.py[cod]
+
+# Local build output.
+*.oci.tar
