@@ -1,29 +1,37 @@
 # SBX Kit Pifrost
 
-SBX Kit Pifrost is a Bifrost-configured Docker Sandbox v3 kit set. It uses
-Docker's published Shell workload and a project-owned Pi mixin as its foundation:
+SBX Kit Pifrost is a Docker Sandbox kit. A kit is a package that creates a
+configured sandbox. Pifrost sends model requests through a Bifrost gateway.
 
-- [`docker.io/sbx/shell:1.0.3`](https://hub.docker.com/r/sbx/shell) — the
-  Debian-based shell workload with Bash, Git, apt, Docker, Compose, Buildx,
-  Node/npm, Python, and common CLI tools.
-- [`docker.io/choziandi/sbx-kit-pifrost-pi-mixin:1.5.0`](https://hub.docker.com/r/choziandi/sbx-kit-pifrost-pi-mixin) — the project-owned
-  Pi 1.5.0 mixin, including Debian's recommended `fd-find` binary, npm proxy
-  hook, and pinned [`pi-bifrost-provider`](https://github.com/lxdlam/pi-bifrost-provider)
+A workload provides the main sandbox environment. A mixin adds files or tools
+to that environment. Pifrost uses Docker's published Shell workload and a
+project-owned Pi mixin:
+
+- [`docker.io/sbx/shell:1.0.3`](https://hub.docker.com/r/sbx/shell) is a
+  Debian-based shell workload. It includes Bash, Git, `apt`, Docker, Compose,
+  Buildx, Node.js, npm, Python, and common command-line tools.
+- [`docker.io/choziandi/sbx-kit-pifrost-pi-mixin:1.5.0`](https://hub.docker.com/r/choziandi/sbx-kit-pifrost-pi-mixin) is the project-owned
+  Pi 1.5.0 mixin. It includes Debian's recommended `fd-find` binary, an npm
+  proxy hook, and the pinned
+  [`pi-bifrost-provider`](https://github.com/lxdlam/pi-bifrost-provider)
   extension.
 
-The Pifrost set additionally contributes Bifrost network policy, Bifrost
-lifecycle configuration, and host-side credential instructions. chozian's
-reviewed shell files and the current Pi settings snapshot are supplied by
-the optional `sbx-kit-pifrost-opinions-chozian` mixin. DoD trust certificates
-remain an optional separate mixin.
+The Pifrost kit adds Bifrost network policy, Bifrost lifecycle configuration,
+and host credential instructions. The optional
+`sbx-kit-pifrost-opinions-chozian` mixin adds chozian's reviewed shell files
+and the current Pi settings snapshot.
+DoD trust certificates are available in a separate, optional mixin.
 
-The canonical published artifact name is:
+The published artifact name is:
 
 ```text
 docker.io/choziandi/sbx-kit-pifrost:1.0.0
 ```
 
 ## Requirements
+
+Use the first sections to install and run the published kit. Use the later
+sections to build, test, or publish a customized kit.
 
 - A WSL2 Ubuntu 24.04 or newer distribution when using local Sandboxes.
 - Docker Sandboxes and the Linux `sbx` CLI installed inside WSL Ubuntu.
@@ -38,8 +46,9 @@ Cloud Sandboxes do not require local WSL KVM.
 
 ## 1. Prepare WSL KVM and install Docker Sandboxes
 
-Docker Sandboxes local workloads run a VM. WSL2 therefore needs nested
-virtualization, a loaded KVM module, and access to `/dev/kvm`.
+A local Docker Sandbox workload runs in a virtual machine (VM). WSL2 must
+therefore use nested virtualization, load a KVM module, and provide access to
+`/dev/kvm`. Nested virtualization lets a VM run inside another VM.
 
 Check the Ubuntu release and KVM state:
 
@@ -49,9 +58,8 @@ lsmod | grep kvm
 ls -l /dev/kvm
 ```
 
-A working setup has a KVM module loaded and a `/dev/kvm` device that is both
-readable and writable by the WSL user. Add the user to the KVM group and start
-a new shell:
+A working setup loads a KVM module. The WSL user must be able to read and
+write `/dev/kvm`. Add the user to the KVM group and start a new shell:
 
 ```bash
 sudo usermod -aG kvm "$USER"
@@ -60,8 +68,8 @@ test -r /dev/kvm && test -w /dev/kvm && echo "/dev/kvm is accessible"
 ```
 
 If `/dev/kvm` is absent or inaccessible, fix WSL nested virtualization before
-continuing. Hardware virtualization may need to be enabled by the physical
-host or exposed through an outer VM.
+continuing. Enable hardware virtualization on the physical host or expose KVM
+through an outer VM as needed.
 
 Install the `docker-sbx` package from Docker's APT repository:
 
@@ -84,15 +92,15 @@ sudo apt-get update
 sudo apt-get install -y docker-sbx
 ```
 
-Verify the installation:
+Make sure that the installation works:
 
 ```bash
 sbx version
 ```
 
-The Docker Engine and Docker Desktop are not required for this WSL installation
-step. Docker Sandboxes provides the sandbox-local Docker environment used by
-the workload.
+The Docker Engine and Docker Desktop are not required for this WSL
+installation step. Docker Sandboxes provides the Docker environment inside the
+sandbox.
 
 Disable Docker Sandboxes CLI usage telemetry for interactive WSL shells. The
 wrapper uses the Linux `sbx` executable directly and avoids recursively
@@ -111,24 +119,24 @@ environment instead of relying on the interactive alias.
 
 ### Why Docker Sandboxes run in WSL Ubuntu
 
-Install and invoke the Linux `sbx` CLI inside WSL Ubuntu rather than using a
-client outside WSL. An outside client has to translate a WSL workspace into a
-host-visible mount, which can produce I/O and xattr errors when BuildKit
-accesses files on the WSL filesystem. Running `sbx` from WSL and passing a
-native `/home/...` path avoids that client-side path translation. Keep project
+Install and invoke the Linux `sbx` CLI inside WSL Ubuntu. A client outside
+WSL must translate the WSL workspace into a host mount. This translation can
+produce I/O and xattr errors when BuildKit accesses files. Run `sbx` from WSL
+and pass a native `/home/...` path to avoid this translation. Keep project
 checkouts on WSL's Linux filesystem instead of `/mnt/...` when possible.
 
-The tradeoff is that a local Sandbox VM runs nested inside WSL2. WSL therefore
-needs nested virtualization, a loaded KVM module, access to `/dev/kvm`, and the
-WSL operator in the `kvm` group. WSL's memory and disk limits also apply to the
-nested runtime; increase them if the sandbox or its build workload needs more
-resources. Cloud Sandboxes do not need local WSL KVM.
+A local Sandbox VM runs inside WSL2. WSL therefore needs nested virtualization,
+a loaded KVM module, access to `/dev/kvm`, and the WSL user in the `kvm` group.
+WSL's memory and disk limits also apply to the nested runtime. Increase these
+limits if the sandbox or its build workload needs more resources. Cloud
+Sandboxes do not need local WSL KVM.
 
 ### First-use network policy
 
-When Docker Sandboxes asks for an initial policy, prefer a deny-all baseline.
-The Pifrost set declares the endpoints it needs. If a request is denied, inspect
-the effective policy before adding an exception:
+When Docker Sandboxes asks for an initial network policy, start with a policy
+that denies all network access. The Pifrost kit adds the endpoints that it
+needs. If a request is denied, review the active policy before allowing another
+endpoint:
 
 ```bash
 sbx policy ls --wide
@@ -153,7 +161,7 @@ source /usr/share/bash-completion/bash_completion
 
 Regenerate the completion file after upgrading the `docker-sbx` package.
 
-## 2. Start and check Bifrost
+## 2. Start and test Bifrost
 
 Pifrost expects Bifrost at:
 
@@ -176,15 +184,15 @@ npm install --global @maximhq/bifrost
 bifrost --host localhost --port 8080
 ```
 
-Run Bifrost in one WSL terminal and use another WSL terminal for the remaining
-setup. Configure the approved upstream provider and model in Bifrost, then
-create a Bifrost virtual key. For reference, see Bifrost's official [gateway
-setup guide](https://docs.getbifrost.ai/quickstart/gateway/setting-up), [provider
+Run Bifrost in one WSL terminal. Use another WSL terminal for the remaining
+setup. Configure the approved upstream provider and model in Bifrost. Create a
+Bifrost virtual key. For reference, see Bifrost's official [gateway setup
+guide](https://docs.getbifrost.ai/quickstart/gateway/setting-up), [provider
 configuration guide](https://docs.getbifrost.ai/quickstart/gateway/provider-configuration),
 and [virtual keys documentation](https://docs.getbifrost.ai/features/governance/virtual-keys).
 The upstream Bifrost project is also available on [GitHub](https://github.com/maximhq/bifrost).
 
-Keep the real key on the host and verify the gateway:
+Keep the real key on the host and test the gateway:
 
 ```bash
 read -rsp 'Bifrost API key: ' BIFROST_API_KEY
@@ -213,8 +221,8 @@ gh auth login
 gh auth status
 ```
 
-If `gh` is installed through apt or the official GitHub CLI repository instead,
-ensure it is on `PATH` and run the same authentication commands.
+If `gh` is installed through `apt` or the official GitHub CLI repository,
+make sure that it is on `PATH`. Run the same authentication commands.
 
 Register the host-side token command with Docker Sandboxes:
 
@@ -222,8 +230,9 @@ Register the host-side token command with Docker Sandboxes:
 sbx secret set github --command 'gh auth token'
 ```
 
-The credential proxy runs `gh auth token` on the host when needed. The real
-GitHub token is not copied into the repository or sandbox.
+The credential proxy is a host service that supplies credentials when a
+command needs them. It runs `gh auth token` on the host. The real GitHub token
+is not copied into the repository or sandbox.
 
 ## 4. Authenticate Docker Sandboxes
 
@@ -250,10 +259,10 @@ sbx secret set-custom \
 ```
 
 The two hosts are intentional. Pi calls `host.docker.internal:8080` from the
-sandbox, while the host-side credential route is evaluated as
-`localhost:8080`. They are credential matching targets, not two Pi endpoints.
+sandbox. The host-side credential route uses `localhost:8080`. These hosts are
+credential matching targets. They are not two Pi endpoints.
 
-Check the registration:
+List the registered secret:
 
 ```console
 sbx secret ls
@@ -293,8 +302,9 @@ sbx run docker.io/choziandi/sbx-kit-pifrost:1.0.0 \
 ```
 
 The core artifact provides the Shell/Pi workload, Bifrost route, credential
-policy, and Python 3 compatibility command. The current chozian Pi and shell
-profile is optional and is documented in the opinionated mixin section below.
+policy, and Python 3 compatibility command. The artifact is the built package
+that you run as a sandbox. The current chozian Pi and shell profile is optional.
+The opinionated mixin section below describes it.
 
 After leaving the sandbox, reenter an existing named sandbox with:
 
@@ -313,7 +323,7 @@ The request path is:
 ```text
 Pi in sandbox
   -> host.docker.internal:8080
-  -> Docker Sandboxes network and credential proxy
+  -> Docker Sandboxes network and credential proxy service
   -> localhost:8080
   -> Bifrost in WSL
 ```
@@ -341,17 +351,17 @@ credential policy, and the core `python-is-python3` compatibility package. The
 optional opinions mixin contains the reviewed shell/editor files and
 chozian's current Pi settings profile.
 
-The mixin installs only packages not already provided by the selected Shell
-workload:
+The mixin installs only packages that the selected Shell workload does not
+already provide:
 
-- `bash-completion`;
-- `vim-solarized`; and
+- `bash-completion`
+- `vim-solarized`
 - Vim command alternatives for `/usr/bin/vi`, `/usr/bin/vim`, and
-  `/usr/bin/view` (read-only Vim).
+  `/usr/bin/view` (read-only Vim)
 
 The core artifact installs `python-is-python3`, which provides the unversioned
 `python` command as the Python 3 compatibility command. The Shell workload
-already provides `htop`, `less`, `tmux`, and `vim`; the opinions mixin verifies
+already provides `htop`, `less`, `tmux`, and `vim`. The opinions mixin checks
 those tools but does not reinstall them.
 
 The published opinions mixin adds the reviewed chozian shell/editor profile
@@ -378,12 +388,12 @@ sbx run docker.io/choziandi/sbx-kit-pifrost:1.0.0 \
 
 ## Security and network behavior
 
-The local network policy is fail-closed for direct AI-provider access. It
-allows the host Bifrost route and package/runtime endpoints needed by the shell
-and Pi. The bundled `default-ai-services` group is explicitly denied except for
-`models.dev:443`, which is permitted for Pi runtime model metadata. Direct
-OpenAI, Anthropic, Gemini, Perplexity, Cursor, and related provider routes
-remain denied. Bifrost is the intended model path.
+The local network policy blocks direct AI-provider access by default. It
+allows the host Bifrost route and the package and runtime endpoints that the
+shell and Pi need. The bundled `default-ai-services` group is denied except for
+`models.dev:443`, which Pi uses for runtime model metadata. Direct OpenAI,
+Anthropic, Gemini, Perplexity, Cursor, and related provider routes remain
+blocked. Bifrost is the intended model path.
 
 The host-side custom secret remains outside the sandbox. Pifrost uses Bifrost
 for provider access rather than connecting directly to AI-provider endpoints.
@@ -400,14 +410,16 @@ access.
 
 ## Development and customization
 
-The remainder of this README is for maintainers and users building a private
-or customized variant. End users can use the published artifacts and setup
-instructions above without rendering or building this repository.
+The rest of this README is for maintainers and users who build a private or
+customized variant. End users can use the published artifacts and setup
+instructions above. They do not need to render or build this repository.
 
 ### Architecture
 
-`sbx-kit-pifrost.yaml` is a formal `kind: set` descriptor. It contains one
-published workload and one published mixin, plus local set capabilities:
+`sbx-kit-pifrost.yaml` is a formal `kind: set` descriptor. A capability is a
+set feature that adds behavior, such as a network policy or lifecycle rule.
+The descriptor contains one published workload, one published mixin, and local
+set capabilities:
 
 ```text
 source set
@@ -422,16 +434,19 @@ optional mixins
 published result     (kind: workload)
 ```
 
-The Shell workload owns the root filesystem and launch command. The project-owned
-Pi mixin contributes Pi 1.5.0 and the Bifrost provider extension without
-replacing the shell entrypoint. It is derived from Docker's published
+The Shell workload owns the root filesystem and launch command. The launch
+command is the command that starts the workload. The project-owned Pi mixin
+adds Pi 1.5.0 and the Bifrost provider extension. It does not replace the
+shell entrypoint, which is the command that starts the shell. The mixin is
+derived from Docker's published
 [`sbx/pi-mixin`](https://hub.docker.com/r/sbx/pi-mixin) recipe. The local
 capabilities add the Pifrost network policy, lifecycle configuration, and
-persistent Bifrost URL. The optional mixins add chozian's Pi/shell profile and
-approved DoD trust roots when selected.
+persistent Bifrost URL. The optional mixins add chozian's Pi and shell profile
+and approved DoD trust roots when selected.
 
-The source descriptor uses readable version tags; publishing resolves and
-records the references by manifest digest:
+The source descriptor uses readable version tags. A manifest digest is a
+unique identifier for one published image version. Publishing resolves each
+reference to a manifest digest:
 
 ```yaml
 kind: set
@@ -447,12 +462,12 @@ The opinions mixin supplies these reviewed files:
 - `vendor/simple-english/` for the pinned Simple English Pi skill and its
   supporting references. The generated mixin declares it with
   `com.docker.sandbox/agent-skill@1` and stores the bundle outside
-  `/home/agent/.agents/skills`; Docker Sandbox exposes it in that discovery
-  directory at sandbox creation time;
+  `/home/agent/.agents/skills`. Docker Sandbox exposes it in that discovery
+  directory when it creates the sandbox.
 - `files/.bashrc`, `files/.bash_aliases`, and `files/.dircolors` for the
-  interactive shell presentation and aliases;
-- `files/.vimrc` for the Solarized Dark Vim colorscheme;
-- `files/sandbox-persistent.sh` for the persistent shell/editor environment;
+  interactive shell presentation and aliases.
+- `files/.vimrc` for the Solarized Dark Vim colorscheme.
+- `files/sandbox-persistent.sh` for the persistent shell/editor environment.
 - `files/settings.json` for general Pi behavior and terminal preferences.
 
 The source snapshots are used by default for a reviewable build. To explicitly
@@ -467,7 +482,7 @@ changes before publishing. For a fully reviewable release, copy the intended
 host version into `files/settings.json` and render without the flag.
 
 Build and publish the opinions mixin as its own artifact. The tag remains
-`1.0.0`; the artifact includes the pinned Simple English skill.
+`1.0.0`. The artifact includes the pinned Simple English skill.
 
 ```console
 docker buildx build . \
@@ -583,25 +598,25 @@ docker buildx imagetools inspect \
     docker.io/choziandi/sbx-kit-pifrost-certs-dod:1.0.0
 ```
 
-The source refs are version-pinned tags. The published set records resolved
-kit digests. Pin those digests explicitly in a controlled release process when
-byte-for-byte reproducibility is required.
+The source references use version-pinned tags. The published set records
+resolved kit digests. Pin those digests explicitly in a controlled release
+process when byte-for-byte reproducibility is required.
 
 ## Testing checklist
 
-Run end-to-end checks from a WSL Ubuntu host with KVM/nested virtualization or
-from Docker Cloud Sandboxes:
+Run these end-to-end tests from a WSL Ubuntu host with KVM and nested
+virtualization. You can also run them from Docker Cloud Sandboxes:
 
-- Bifrost health, `/v1/models`, and credential registration;
-- `python --version` and `git log` in a core-only sandbox;
-- `vim`, `tmux`, `htop`, `less`, shell aliases, and Pi requests with the
-  optional opinions mixin;
-- dynamic Pi Bifrost model discovery and `models-store.json` behavior with
-  the opinions mixin;
-- `pi update` and runtime npm access;
-- effective local and organization network policies; and
-- DoD-trusted TLS when the optional certificate mixin is selected, including
-  when it is composed with the opinions mixin.
+- Test Bifrost health, `/v1/models`, and credential registration.
+- Run `python --version` and `git log` in a core-only sandbox.
+- Test `vim`, `tmux`, `htop`, `less`, shell aliases, and Pi requests with the
+  optional opinions mixin.
+- Test dynamic Pi Bifrost model discovery and `models-store.json` with the
+  opinions mixin.
+- Run `pi update` and test runtime npm access.
+- Review the effective local and organization network policies.
+- Test DoD-trusted TLS when the optional certificate mixin is selected. Repeat
+  the test when the certificate mixin is combined with the opinions mixin.
 
 ## License
 
