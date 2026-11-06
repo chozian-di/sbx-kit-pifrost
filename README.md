@@ -481,8 +481,12 @@ The matching host file is `~/.pi/agent/settings.json`. Review host-derived
 changes before publishing. For a fully reviewable release, copy the intended
 host version into `files/settings.json` and render without the flag.
 
-Build and publish the opinions mixin as its own artifact. The tag remains
-`1.0.0`. The artifact includes the pinned Simple English skill.
+Build and publish the opinions mixin as its own artifact. This release uses
+version `1.0.0`. The artifact includes the pinned Simple English skill.
+
+If you change the mixin contents for a new release, update the version in
+`scripts/render-kit-set.py`, regenerate the descriptors, and update the image
+references in this README.
 
 ```console
 docker buildx build . \
